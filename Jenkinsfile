@@ -13,9 +13,11 @@ spec:
 
   containers:
     - name: tools
-      image: bitnami/kubectl:latest
+      image: ubuntu:22.04
       command:
-        - cat
+        - sleep
+      args:
+        - "999999"
       tty: true
 '''
 ) {
@@ -26,20 +28,29 @@ spec:
             checkout scm
         }
 
-        stage('Install AWS CLI') {
+        stage('Install Tools') {
 
             container('tools') {
 
                 sh '''
-                apt-get update || true
+                apt-get update
 
-                apt-get install -y curl unzip || true
+                apt-get install -y \
+                  curl \
+                  unzip \
+                  git
+
+                curl -LO "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
+
+                chmod +x kubectl
+
+                mv kubectl /usr/local/bin/
 
                 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 
                 unzip awscliv2.zip
 
-                ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update || true
+                ./aws/install
 
                 aws --version
 
@@ -58,14 +69,11 @@ spec:
                 ]]) {
 
                     sh '''
-                    mkdir -p /home/jenkins/.kube
+                    mkdir -p /root/.kube
 
                     aws eks update-kubeconfig \
                       --region ap-southeast-1 \
-                      --name hello-cluster \
-                      --kubeconfig /home/jenkins/.kube/config
-
-                    export KUBECONFIG=/home/jenkins/.kube/config
+                      --name hello-cluster
 
                     kubectl get nodes
                     '''
@@ -83,8 +91,6 @@ spec:
                 ]]) {
 
                     sh '''
-                    export KUBECONFIG=/home/jenkins/.kube/config
-
                     kubectl apply -f k8s/deployment.yaml
 
                     kubectl apply -f k8s/service.yaml
