@@ -62,47 +62,50 @@ node(POD_LABEL) {
 
         container('tools') {
 
+            // Common tools (always run)
             sh '''
             apt-get update
-
+    
             apt-get install -y \
               curl \
               unzip \
               git
-
+    
             # Install kubectl
             curl -LO "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
-
             chmod +x kubectl
-
             mv kubectl /usr/local/bin/
-
+    
+            echo "===== Kubectl Version ====="
+            kubectl version --client
+            '''
+    
+            // AWS specific
             if (params.CLOUD_PROVIDER == "aws") {
-                # Install AWS CLI
+                sh '''
+                echo "===== Installing AWS CLI ====="
+    
                 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
                   -o "awscliv2.zip"
-
-                unzip awscliv2.zip
     
+                unzip awscliv2.zip
                 ./aws/install || true
+    
+                aws --version
+                '''
             }
-
+    
+            // GCP specific
             if (params.CLOUD_PROVIDER == "gcp") {
-
-                # Install GKE auth plugin
-                gcloud components install \
-                  gke-gcloud-auth-plugin -q || true
-
+                sh '''
+                echo "===== GCP Setup ====="
+    
+                # Install GKE auth plugin (if needed)
+                gcloud components install gke-gcloud-auth-plugin -q || true
+    
+                gcloud version
+                '''
             }
-
-            echo "===== Versions ====="
-
-            kubectl version --client
-
-            aws --version || true
-
-            gcloud version
-            '''
         }
     }
 
