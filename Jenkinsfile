@@ -13,7 +13,7 @@ spec:
 
   containers:
     - name: tools
-      image: lachlanevenson/k8s-kubectl:v1.30.0
+      image: bitnami/kubectl:latest
       command:
         - cat
       tty: true
@@ -31,11 +31,15 @@ spec:
             container('tools') {
 
                 sh '''
+                apt-get update || true
+
+                apt-get install -y curl unzip || true
+
                 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 
                 unzip awscliv2.zip
 
-                ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+                ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update || true
 
                 aws --version
 
