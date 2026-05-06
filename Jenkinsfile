@@ -151,7 +151,8 @@ node(POD_LABEL) {
                         gcloud container clusters get-credentials \
                           gke-qa2-sg1 \
                           --zone asia-southeast1 \
-                          --project gke-qa2-36938
+                          --project gke-qa2-36938 \
+                          --internal-ip
 
                         echo "===== GKE Nodes ====="
 
@@ -225,12 +226,12 @@ node(POD_LABEL) {
                         )
                     ]) {
 
-                        sh '''
-                        export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
+                        // sh '''
+                        // export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
 
-                        gcloud auth activate-service-account \
-                          --key-file=$GOOGLE_APPLICATION_CREDENTIALS
-                        '''
+                        // gcloud auth activate-service-account \
+                        //   --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+                        // '''
 
                         if (params.ACTION == "deploy") {
 
