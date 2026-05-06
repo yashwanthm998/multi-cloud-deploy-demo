@@ -91,21 +91,13 @@ spec:
                 ]]) {
 
                     sh '''
-                    kubectl config view --minify | grep namespace || true
+                    kubectl apply -n default -f k8s/deployment.yaml
 
-                    echo "===== deployment.yaml ====="
-                    cat k8s/deployment.yaml
+                    kubectl apply -n default -f k8s/service.yaml
 
-                    echo "===== service.yaml ====="
-                    cat k8s/service.yaml
+                    kubectl get pods -n default
 
-                    kubectl apply -f k8s/deployment.yaml
-
-                    kubectl apply -f k8s/service.yaml
-
-                    kubectl get pods
-
-                    kubectl get svc
+                    kubectl get svc -n default
                     '''
                 }
             }
