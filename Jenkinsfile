@@ -15,14 +15,12 @@ pipeline {
             }
         }
 
-        stage('Install Tools') {
+        stage('Install kubectl') {
             steps {
                 sh '''
                 set -e
 
                 mkdir -p $HOME/bin
-
-                echo "Installing kubectl..."
 
                 curl -LO https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl
 
@@ -30,19 +28,7 @@ pipeline {
 
                 mv kubectl $HOME/bin/
 
-                echo "Installing AWS CLI..."
-
-                curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-
-                python3 -m zipfile -e awscliv2.zip .
-
-                ./aws/install -i $HOME/aws-cli -b $HOME/bin
-
-                echo "Verifying installations..."
-
                 kubectl version --client
-
-                aws --version
                 '''
             }
         }
@@ -52,13 +38,14 @@ pipeline {
                 sh '''
                 set -e
 
-                echo "Configuring kubeconfig for EKS..."
-
-                aws eks update-kubeconfig \
+                docker run --rm \
+                  -v $HOME/.kube:/root/.kube \
+                  -v $(pwd):/workdir \
+                  -w /workdir \
+                  amazon/aws-cli \
+                  eks update-kubeconfig \
                   --region $AWS_REGION \
                   --name $CLUSTER_NAME
-
-                echo "Connected nodes:"
 
                 kubectl get nodes
                 '''
@@ -70,8 +57,6 @@ pipeline {
                 sh '''
                 set -e
 
-                echo "Deploying application..."
-
                 kubectl apply -f k8s/deployment.yaml
 
                 kubectl apply -f k8s/service.yaml
@@ -82,11 +67,7 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
-                echo "Pods status:"
-
                 kubectl get pods
-
-                echo "Services status:"
 
                 kubectl get svc
                 '''
