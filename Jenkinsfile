@@ -40,11 +40,22 @@ spec:
 
             container('aws') {
 
-                sh '''
-                aws eks update-kubeconfig \
-                  --region ap-southeast-1 \
-                  --name hello-cluster
-                '''
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-creds'
+                ]]) {
+
+                    sh '''
+                    mkdir -p /home/jenkins/.kube
+
+                    aws eks update-kubeconfig \
+                      --region ap-southeast-1 \
+                      --name hello-cluster \
+                      --kubeconfig /home/jenkins/.kube/config
+
+                    cat /home/jenkins/.kube/config
+                    '''
+                }
             }
         }
 
@@ -53,6 +64,8 @@ spec:
             container('kubectl') {
 
                 sh '''
+                export KUBECONFIG=/home/jenkins/.kube/config
+
                 kubectl get nodes
 
                 kubectl apply -f k8s/deployment.yaml
