@@ -1,10 +1,14 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'amazon/aws-cli'
+            args '-u root'
+        }
+    }
 
     environment {
         AWS_REGION = "ap-southeast-1"
         CLUSTER_NAME = "hello-cluster"
-        PATH = "${env.HOME}/bin:${env.PATH}"
     }
 
     stages {
@@ -18,15 +22,11 @@ pipeline {
         stage('Install kubectl') {
             steps {
                 sh '''
-                set -e
-
-                mkdir -p $HOME/bin
-
                 curl -LO https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl
 
                 chmod +x kubectl
 
-                mv kubectl $HOME/bin/
+                mv kubectl /usr/local/bin/
 
                 kubectl version --client
                 '''
@@ -36,14 +36,7 @@ pipeline {
         stage('Configure EKS Access') {
             steps {
                 sh '''
-                set -e
-
-                docker run --rm \
-                  -v $HOME/.kube:/root/.kube \
-                  -v $(pwd):/workdir \
-                  -w /workdir \
-                  amazon/aws-cli \
-                  eks update-kubeconfig \
+                aws eks update-kubeconfig \
                   --region $AWS_REGION \
                   --name $CLUSTER_NAME
 
@@ -55,8 +48,6 @@ pipeline {
         stage('Deploy Application') {
             steps {
                 sh '''
-                set -e
-
                 kubectl apply -f k8s/deployment.yaml
 
                 kubectl apply -f k8s/service.yaml
@@ -72,16 +63,6 @@ pipeline {
                 kubectl get svc
                 '''
             }
-        }
-    }
-
-    post {
-        success {
-            echo 'Deployment completed successfully 🚀'
-        }
-
-        failure {
-            echo 'Pipeline failed ❌'
         }
     }
 }
