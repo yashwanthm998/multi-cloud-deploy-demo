@@ -1,22 +1,33 @@
 podTemplate(
-    containers: [
+    yaml: '''
+apiVersion: v1
+kind: Pod
+spec:
+  tolerations:
+    - key: "role"
+      operator: "Exists"
+      effect: "NoSchedule"
 
-        containerTemplate(
-            name: 'aws',
-            image: 'amazon/aws-cli',
-            command: 'sleep',
-            args: '99d',
-            ttyEnabled: true
-        ),
+    - key: "CriticalAddonsOnly"
+      operator: "Exists"
 
-        containerTemplate(
-            name: 'kubectl',
-            image: 'bitnami/kubectl:latest',
-            command: 'sleep',
-            args: '99d',
-            ttyEnabled: true
-        )
-    ]
+  containers:
+    - name: aws
+      image: amazon/aws-cli
+      command:
+        - sleep
+      args:
+        - "99d"
+      tty: true
+
+    - name: kubectl
+      image: bitnami/kubectl:latest
+      command:
+        - sleep
+      args:
+        - "99d"
+      tty: true
+'''
 ) {
 
     node(POD_LABEL) {
