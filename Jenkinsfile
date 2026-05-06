@@ -1,18 +1,65 @@
 pipeline {
     agent any
 
+    environment {
+        AWS_REGION = "ap-southeast-1"
+        CLUSTER_NAME = "hello-cluster"
+    }
+
     stages {
-        stage('Checkout Code') {
+
+        stage('Checkout') {
             steps {
-                git 'https://github.com/yashwanthm998//multi-cloud-deploy-demo.git'
+                checkout scm
             }
         }
 
-        stage('Deploy to EKS') {
+        stage('Install kubectl') {
             steps {
                 sh '''
+                curl -LO https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl
+                chmod +x kubectl
+                mkdir -p $HOME/bin
+                mv kubectl $HOME/bin/
+                export PATH=$HOME/bin:$PATH
+
+                kubectl version --client
+                '''
+            }
+        }
+
+        stage('Configure EKS Access') {
+            steps {
+                sh '''
+                export PATH=$HOME/bin:$PATH
+
+                aws eks update-kubeconfig \
+                  --region $AWS_REGION \
+                  --name $CLUSTER_NAME
+
+                kubectl get nodes
+                '''
+            }
+        }
+
+        stage('Deploy Application') {
+            steps {
+                sh '''
+                export PATH=$HOME/bin:$PATH
+
                 kubectl apply -f k8s/deployment.yaml
                 kubectl apply -f k8s/service.yaml
+                '''
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sh '''
+                export PATH=$HOME/bin:$PATH
+
+                kubectl get pods
+                kubectl get svc
                 '''
             }
         }
