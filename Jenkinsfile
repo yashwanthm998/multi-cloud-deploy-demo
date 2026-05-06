@@ -91,6 +91,14 @@ spec:
                 ]]) {
 
                     sh '''
+                    kubectl config view --minify | grep namespace || true
+
+                    echo "===== deployment.yaml ====="
+                    cat k8s/deployment.yaml
+
+                    echo "===== service.yaml ====="
+                    cat k8s/service.yaml
+
                     kubectl apply -f k8s/deployment.yaml
 
                     kubectl apply -f k8s/service.yaml
