@@ -12,20 +12,10 @@ spec:
       operator: "Exists"
 
   containers:
-    - name: aws
-      image: amazon/aws-cli
+    - name: tools
+      image: lachlanevenson/k8s-kubectl:v1.30.0
       command:
-        - sleep
-      args:
-        - "99d"
-      tty: true
-
-    - name: kubectl
-      image: bitnami/kubectl:latest
-      command:
-        - sleep
-      args:
-        - "99d"
+        - cat
       tty: true
 '''
 ) {
@@ -36,9 +26,27 @@ spec:
             checkout scm
         }
 
+        stage('Install AWS CLI') {
+
+            container('tools') {
+
+                sh '''
+                curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+
+                unzip awscliv2.zip
+
+                ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+
+                aws --version
+
+                kubectl version --client
+                '''
+            }
+        }
+
         stage('Configure EKS Access') {
 
-            container('aws') {
+            container('tools') {
 
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
@@ -53,7 +61,9 @@ spec:
                       --name hello-cluster \
                       --kubeconfig /home/jenkins/.kube/config
 
-                    cat /home/jenkins/.kube/config
+                    export KUBECONFIG=/home/jenkins/.kube/config
+
+                    kubectl get nodes
                     '''
                 }
             }
@@ -61,21 +71,25 @@ spec:
 
         stage('Deploy Application') {
 
-            container('kubectl') {
+            container('tools') {
 
-                sh '''
-                export KUBECONFIG=/home/jenkins/.kube/config
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-creds'
+                ]]) {
 
-                kubectl get nodes
+                    sh '''
+                    export KUBECONFIG=/home/jenkins/.kube/config
 
-                kubectl apply -f k8s/deployment.yaml
+                    kubectl apply -f k8s/deployment.yaml
 
-                kubectl apply -f k8s/service.yaml
+                    kubectl apply -f k8s/service.yaml
 
-                kubectl get pods
+                    kubectl get pods
 
-                kubectl get svc
-                '''
+                    kubectl get svc
+                    '''
+                }
             }
         }
     }
