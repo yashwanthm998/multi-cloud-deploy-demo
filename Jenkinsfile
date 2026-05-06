@@ -77,17 +77,23 @@ node(POD_LABEL) {
 
             mv kubectl /usr/local/bin/
 
-            # Install AWS CLI
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
-              -o "awscliv2.zip"
+            if (params.CLOUD_PROVIDER == "aws") {
+                # Install AWS CLI
+                curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
+                  -o "awscliv2.zip"
 
-            unzip awscliv2.zip
+                unzip awscliv2.zip
+    
+                ./aws/install || true
+            }
 
-            ./aws/install || true
+            if (params.CLOUD_PROVIDER == "gcp") {
 
-            # Install GKE auth plugin
-            gcloud components install \
-              gke-gcloud-auth-plugin -q || true
+                # Install GKE auth plugin
+                gcloud components install \
+                  gke-gcloud-auth-plugin -q || true
+
+            }
 
             echo "===== Versions ====="
 
