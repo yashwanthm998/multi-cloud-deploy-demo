@@ -53,10 +53,18 @@ spec:
 
 node(POD_LABEL) {
 
+    // ============================================================
+    // Checkout
+    // ============================================================
+
     stage('Checkout') {
 
         checkout scm
     }
+
+    // ============================================================
+    // Install Tools
+    // ============================================================
 
     stage('Install Tools') {
 
@@ -71,13 +79,12 @@ node(POD_LABEL) {
               git
 
             # Install kubectl
+
             curl -LO "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
 
             chmod +x kubectl
 
             mv kubectl /usr/local/bin/
-
-            echo "===== Kubectl Version ====="
 
             kubectl version --client
             '''
@@ -105,7 +112,7 @@ node(POD_LABEL) {
             if (params.CLOUD_PROVIDER == "gcp") {
 
                 sh '''
-                echo "===== GCP Setup ====="
+                echo "===== Installing GKE Auth Plugin ====="
 
                 gcloud components install \
                   gke-gcloud-auth-plugin -q || true
@@ -115,6 +122,10 @@ node(POD_LABEL) {
             }
         }
     }
+
+    // ============================================================
+    // Configure Cluster Access
+    // ============================================================
 
     stage('Configure Cluster Access') {
 
@@ -180,15 +191,19 @@ node(POD_LABEL) {
         }
     }
 
+    // ============================================================
+    // Scale Down Deployment In Other Cloud
+    // ============================================================
+
     stage('Scale Down Deployment In Other Cloud') {
 
         container('tools') {
 
             script {
 
-                // =====================================================
-                // Deploying to AWS → check and scale down GCP
-                // =====================================================
+                // ====================================================
+                // Deploying to AWS → Scale down GKE
+                // ====================================================
 
                 if (params.CLOUD_PROVIDER == "aws" &&
                     params.ACTION == "deploy") {
@@ -241,9 +256,9 @@ node(POD_LABEL) {
                     }
                 }
 
-                // =====================================================
-                // Deploying to GCP → check and scale down AWS
-                // =====================================================
+                // ====================================================
+                // Deploying to GCP → Scale down AWS
+                // ====================================================
 
                 if (params.CLOUD_PROVIDER == "gcp" &&
                     params.ACTION == "deploy") {
@@ -288,52 +303,200 @@ node(POD_LABEL) {
         }
     }
 
-    stage('Deploy/Delete Application') {
+    // ============================================================
+    // Deploy Application In Selected Cloud
+    // ============================================================
+
+    stage('Deploy Application In Selected Cloud') {
 
         container('tools') {
 
             script {
 
-                if (params.ACTION == "deploy") {
+                // ====================================================
+                // Deploy To AWS
+                // ====================================================
 
-                    sh """
-                    echo "===== Deploying Application ====="
+                if (params.CLOUD_PROVIDER == "aws" &&
+                    params.ACTION == "deploy") {
 
-                    kubectl apply -n ${params.NAMESPACE} \
-                      -f k8s/deployment.yaml
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-creds'
+                    ]]) {
 
-                    kubectl apply -n ${params.NAMESPACE} \
-                      -f k8s/service.yaml
+                        sh '''
+                        echo "===== Switching Context To AWS ====="
 
-                    kubectl scale deployment hello-app \
-                      --replicas=1 \
-                      -n ${params.NAMESPACE}
+                        aws eks update-kubeconfig \
+                          --region ap-southeast-1 \
+                          --name hello-cluster
 
-                    echo "===== Pods ====="
+                        echo "===== Current Context ====="
 
-                    kubectl get pods -n ${params.NAMESPACE}
+                        kubectl config current-context
+                        '''
 
-                    echo "===== Services ====="
+                        sh """
+                        echo "===== Deploying Application To AWS ====="
 
-                    kubectl get svc -n ${params.NAMESPACE}
-                    """
+                        kubectl apply -n ${params.NAMESPACE} \
+                          -f k8s/deployment.yaml
+
+                        kubectl apply -n ${params.NAMESPACE} \
+                          -f k8s/service.yaml
+
+                        kubectl scale deployment hello-app \
+                          --replicas=1 \
+                          -n ${params.NAMESPACE}
+
+                        echo "===== AWS Pods ====="
+
+                        kubectl get pods -n ${params.NAMESPACE}
+
+                        echo "===== AWS Services ====="
+
+                        kubectl get svc -n ${params.NAMESPACE}
+                        """
+                    }
                 }
 
-                if (params.ACTION == "delete") {
+                // ====================================================
+                // Deploy To GCP
+                // ====================================================
 
-                    sh """
-                    echo "===== Deleting Application ====="
+                if (params.CLOUD_PROVIDER == "gcp" &&
+                    params.ACTION == "deploy") {
 
-                    kubectl delete -n ${params.NAMESPACE} \
-                      -f k8s/deployment.yaml || true
+                    withCredentials([
+                        file(
+                            credentialsId: 'gcp-sa-key',
+                            variable: 'GCP_KEY'
+                        )
+                    ]) {
 
-                    kubectl delete -n ${params.NAMESPACE} \
-                      -f k8s/service.yaml || true
-                    """
+                        sh '''
+                        echo "===== Switching Context To GKE ====="
+
+                        export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
+
+                        gcloud auth activate-service-account \
+                          --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+
+                        gcloud config set project gke-qa2-36938
+
+                        gcloud container clusters get-credentials \
+                          gke-qa2-sg1 \
+                          --zone asia-southeast1 \
+                          --project gke-qa2-36938 \
+                          --internal-ip
+
+                        echo "===== Current Context ====="
+
+                        kubectl config current-context
+                        '''
+
+                        sh """
+                        echo "===== Deploying Application To GKE ====="
+
+                        kubectl apply -n ${params.NAMESPACE} \
+                          -f k8s/deployment.yaml
+
+                        kubectl apply -n ${params.NAMESPACE} \
+                          -f k8s/service.yaml
+
+                        kubectl scale deployment hello-app \
+                          --replicas=1 \
+                          -n ${params.NAMESPACE}
+
+                        echo "===== GKE Pods ====="
+
+                        kubectl get pods -n ${params.NAMESPACE}
+
+                        echo "===== GKE Services ====="
+
+                        kubectl get svc -n ${params.NAMESPACE}
+                        """
+                    }
+                }
+
+                // ====================================================
+                // Delete From AWS
+                // ====================================================
+
+                if (params.CLOUD_PROVIDER == "aws" &&
+                    params.ACTION == "delete") {
+
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-creds'
+                    ]]) {
+
+                        sh '''
+                        aws eks update-kubeconfig \
+                          --region ap-southeast-1 \
+                          --name hello-cluster
+                        '''
+
+                        sh """
+                        echo "===== Deleting From AWS ====="
+
+                        kubectl delete -n ${params.NAMESPACE} \
+                          -f k8s/deployment.yaml || true
+
+                        kubectl delete -n ${params.NAMESPACE} \
+                          -f k8s/service.yaml || true
+                        """
+                    }
+                }
+
+                // ====================================================
+                // Delete From GCP
+                // ====================================================
+
+                if (params.CLOUD_PROVIDER == "gcp" &&
+                    params.ACTION == "delete") {
+
+                    withCredentials([
+                        file(
+                            credentialsId: 'gcp-sa-key',
+                            variable: 'GCP_KEY'
+                        )
+                    ]) {
+
+                        sh '''
+                        export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
+
+                        gcloud auth activate-service-account \
+                          --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+
+                        gcloud config set project gke-qa2-36938
+
+                        gcloud container clusters get-credentials \
+                          gke-qa2-sg1 \
+                          --zone asia-southeast1 \
+                          --project gke-qa2-36938 \
+                          --internal-ip
+                        '''
+
+                        sh """
+                        echo "===== Deleting From GKE ====="
+
+                        kubectl delete -n ${params.NAMESPACE} \
+                          -f k8s/deployment.yaml || true
+
+                        kubectl delete -n ${params.NAMESPACE} \
+                          -f k8s/service.yaml || true
+                        """
+                    }
                 }
             }
         }
     }
+
+    // ============================================================
+    // Deploy Router (Split Traffic)
+    // ============================================================
 
     stage('Deploy Router (Split Traffic)') {
 
@@ -341,46 +504,100 @@ node(POD_LABEL) {
 
             script {
 
+                // ====================================================
+                // Deploy Router In GCP
+                // ====================================================
+
                 if (params.ACTION == "deploy" &&
                     params.CLOUD_PROVIDER == "gcp") {
 
-                    sh """
-                    echo "===== Deploying NGINX Router ====="
+                    withCredentials([
+                        file(
+                            credentialsId: 'gcp-sa-key',
+                            variable: 'GCP_KEY'
+                        )
+                    ]) {
 
-                    kubectl apply -n ${params.NAMESPACE} \
-                      -f k8s/nginx-router-config.yaml
+                        sh '''
+                        export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
 
-                    kubectl apply -n ${params.NAMESPACE} \
-                      -f k8s/nginx-router-deployment.yaml
+                        gcloud auth activate-service-account \
+                          --key-file=$GOOGLE_APPLICATION_CREDENTIALS
 
-                    kubectl rollout status deployment nginx-router \
-                      -n ${params.NAMESPACE} --timeout=120s
+                        gcloud config set project gke-qa2-36938
 
-                    kubectl apply -n ${params.NAMESPACE} \
-                      -f k8s/nginx-router-service.yaml
+                        gcloud container clusters get-credentials \
+                          gke-qa2-sg1 \
+                          --zone asia-southeast1 \
+                          --project gke-qa2-36938 \
+                          --internal-ip
+                        '''
 
-                    echo "===== Router Service ====="
+                        sh """
+                        echo "===== Deploying NGINX Router ====="
 
-                    kubectl get svc nginx-router-service \
-                      -n ${params.NAMESPACE}
-                    """
+                        kubectl apply -n ${params.NAMESPACE} \
+                          -f k8s/nginx-router-config.yaml
+
+                        kubectl apply -n ${params.NAMESPACE} \
+                          -f k8s/nginx-router-deployment.yaml
+
+                        kubectl rollout status deployment nginx-router \
+                          -n ${params.NAMESPACE} --timeout=120s
+
+                        kubectl apply -n ${params.NAMESPACE} \
+                          -f k8s/nginx-router-service.yaml
+
+                        echo "===== Router Service ====="
+
+                        kubectl get svc nginx-router-service \
+                          -n ${params.NAMESPACE}
+                        """
+                    }
                 }
+
+                // ====================================================
+                // Delete Router From GCP
+                // ====================================================
 
                 if (params.ACTION == "delete" &&
                     params.CLOUD_PROVIDER == "gcp") {
 
-                    sh """
-                    echo "===== Deleting NGINX Router ====="
+                    withCredentials([
+                        file(
+                            credentialsId: 'gcp-sa-key',
+                            variable: 'GCP_KEY'
+                        )
+                    ]) {
 
-                    kubectl delete -n ${params.NAMESPACE} \
-                      -f k8s/nginx-router-deployment.yaml || true
+                        sh '''
+                        export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
 
-                    kubectl delete -n ${params.NAMESPACE} \
-                      -f k8s/nginx-router-service.yaml || true
+                        gcloud auth activate-service-account \
+                          --key-file=$GOOGLE_APPLICATION_CREDENTIALS
 
-                    kubectl delete -n ${params.NAMESPACE} \
-                      -f k8s/nginx-router-config.yaml || true
-                    """
+                        gcloud config set project gke-qa2-36938
+
+                        gcloud container clusters get-credentials \
+                          gke-qa2-sg1 \
+                          --zone asia-southeast1 \
+                          --project gke-qa2-36938 \
+                          --internal-ip
+                        '''
+
+                        sh """
+                        echo "===== Deleting NGINX Router ====="
+
+                        kubectl delete -n ${params.NAMESPACE} \
+                          -f k8s/nginx-router-deployment.yaml || true
+
+                        kubectl delete -n ${params.NAMESPACE} \
+                          -f k8s/nginx-router-service.yaml || true
+
+                        kubectl delete -n ${params.NAMESPACE} \
+                          -f k8s/nginx-router-config.yaml || true
+                        """
+                    }
                 }
             }
         }
