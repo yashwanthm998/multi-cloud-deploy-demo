@@ -5,7 +5,7 @@ metadata:
 data:
   default.conf: |
     upstream aws_backend {
-        server a1233e9bb05f44b39879222a5b9ec048-1063504046.ap-southeast-1.elb.amazonaws.com:80;
+        server a14217039bd6f4767a6e3f99e069c4d6-167679785.ap-southeast-1.elb.amazonaws.com:80;
     }
 
     upstream gcp_backend {
