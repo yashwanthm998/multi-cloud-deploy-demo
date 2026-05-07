@@ -218,10 +218,10 @@ node(POD_LABEL) {
                     ]) {
 
                         sh """
-                        export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
+                        export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_KEY
 
                         gcloud auth activate-service-account \
-                          --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+                          --key-file=\$GOOGLE_APPLICATION_CREDENTIALS
 
                         gcloud config set project gke-qa2-36938
 
@@ -234,13 +234,13 @@ node(POD_LABEL) {
                         if kubectl get deployment hello-app \
                           -n ${params.NAMESPACE} >/dev/null 2>&1; then
 
-                          CURRENT_REPLICAS=$(kubectl get deployment hello-app \
+                          CURRENT_REPLICAS=\$(kubectl get deployment hello-app \
                             -n ${params.NAMESPACE} \
                             -o jsonpath='{.spec.replicas}')
 
-                          echo "Current GKE replicas: $CURRENT_REPLICAS"
+                          echo "Current GKE replicas: \$CURRENT_REPLICAS"
 
-                          if [ "$CURRENT_REPLICAS" != "0" ]; then
+                          if [ "\$CURRENT_REPLICAS" != "0" ]; then
 
                             echo "Scaling down GKE deployment"
 
@@ -278,13 +278,13 @@ node(POD_LABEL) {
                         if kubectl get deployment hello-app \
                           -n ${params.NAMESPACE} >/dev/null 2>&1; then
 
-                          CURRENT_REPLICAS=$(kubectl get deployment hello-app \
+                          CURRENT_REPLICAS=\$(kubectl get deployment hello-app \
                             -n ${params.NAMESPACE} \
                             -o jsonpath='{.spec.replicas}')
 
-                          echo "Current EKS replicas: $CURRENT_REPLICAS"
+                          echo "Current EKS replicas: \$CURRENT_REPLICAS"
 
-                          if [ "$CURRENT_REPLICAS" != "0" ]; then
+                          if [ "\$CURRENT_REPLICAS" != "0" ]; then
 
                             echo "Scaling down EKS deployment"
 
