@@ -232,10 +232,10 @@ node(POD_LABEL) {
                           --internal-ip
 
                         if kubectl get deployment hello-app \
-                          -n default >/dev/null 2>&1; then
+                          -n ${params.NAMESPACE} >/dev/null 2>&1; then
 
                           CURRENT_REPLICAS=$(kubectl get deployment hello-app \
-                            -n default \
+                            -n ${params.NAMESPACE} \
                             -o jsonpath='{.spec.replicas}')
 
                           echo "Current GKE replicas: $CURRENT_REPLICAS"
@@ -246,7 +246,7 @@ node(POD_LABEL) {
 
                             kubectl scale deployment hello-app \
                               --replicas=0 \
-                              -n default
+                              -n ${params.NAMESPACE}
                           fi
 
                         else
@@ -276,10 +276,10 @@ node(POD_LABEL) {
                           --name hello-cluster
 
                         if kubectl get deployment hello-app \
-                          -n default >/dev/null 2>&1; then
+                          -n ${params.NAMESPACE} >/dev/null 2>&1; then
 
                           CURRENT_REPLICAS=$(kubectl get deployment hello-app \
-                            -n default \
+                            -n ${params.NAMESPACE} \
                             -o jsonpath='{.spec.replicas}')
 
                           echo "Current EKS replicas: $CURRENT_REPLICAS"
@@ -290,7 +290,7 @@ node(POD_LABEL) {
 
                             kubectl scale deployment hello-app \
                               --replicas=0 \
-                              -n default
+                              -n ${params.NAMESPACE}
                           fi
 
                         else
