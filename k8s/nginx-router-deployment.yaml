@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-router
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-router
+  template:
+    metadata:
+      labels:
+        app: nginx-router
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: config
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+      volumes:
+      - name: config
+        configMap:
+          name: nginx-router-config
+
+      tolerations:
+        - key: role
+          operator: Equal
+          value: app-1323-std
+          effect: NoSchedule
+
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: role
+                  operator: In
+                  values:
+                    - app-1323-std

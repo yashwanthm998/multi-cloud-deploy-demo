@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-router-config
+data:
+  default.conf: |
+    upstream aws_backend {
+        server a1233e9bb05f44b39879222a5b9ec048-1063504046.ap-southeast-1.elb.amazonaws.com:80;
+    }
+
+    upstream gcp_backend {
+        server 34.87.29.88:80;
+    }
+
+    split_clients "$request_id" $backend {
+        50% "aws";
+        *   "gcp";
+    }
+
+    map $backend $target {
+        aws http://aws_backend;
+        gcp http://gcp_backend;
+    }
+
+    server {
+        listen 80;
+
+        location / {
+            proxy_pass $target;
+
+            add_header X-Cloud-Provider $backend;
+        }
+    }
