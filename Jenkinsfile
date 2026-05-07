@@ -300,13 +300,26 @@ spec:
                         kubectl apply -n ${params.NAMESPACE} \
                         -f k8s/nginx-router-service.yaml
 
-                        echo "===== Waiting for Service Endpoints ====="
+                        echo "===== Waiting for APP External IP ====="
 
-                        until kubectl get endpoints nginx-router-service -n ${params.NAMESPACE} \
-                        -o jsonpath='{.subsets[0].addresses[0].ip}' 2>/dev/null; do
-                        echo "Waiting for endpoints..."
-                        sleep 5
+                        for i in {1..30}; do
+                          APP_IP=\$(kubectl get svc nginx-router-service \
+                            -n ${params.NAMESPACE} \
+                            -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+                        
+                          if [ -n "\$APP_IP" ]; then
+                            echo "App External IP: \$APP_IP"
+                            break
+                          fi
+                        
+                          echo "Waiting for app external IP..."
+                          sleep 5
                         done
+                        
+                        if [ -z "\$APP_IP" ]; then
+                          echo "ERROR: App external IP not found"
+                          exit 1
+                        fi
 
                         echo "===== Router Service ====="
 
