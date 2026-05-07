@@ -78,7 +78,9 @@ node(POD_LABEL) {
               unzip \
               git
 
+            # ====================================================
             # Install kubectl
+            # ====================================================
 
             curl -LO "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
 
@@ -87,39 +89,33 @@ node(POD_LABEL) {
             mv kubectl /usr/local/bin/
 
             kubectl version --client
+
+            # ====================================================
+            # Install AWS CLI
+            # ====================================================
+
+            echo "===== Installing AWS CLI ====="
+
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
+              -o "awscliv2.zip"
+
+            unzip awscliv2.zip
+
+            ./aws/install || true
+
+            aws --version
+
+            # ====================================================
+            # Install GKE Auth Plugin
+            # ====================================================
+
+            echo "===== Installing GKE Auth Plugin ====="
+
+            gcloud components install \
+              gke-gcloud-auth-plugin -q || true
+
+            gcloud version
             '''
-
-            // ================= AWS Tools =================
-
-            if (params.CLOUD_PROVIDER == "aws") {
-
-                sh '''
-                echo "===== Installing AWS CLI ====="
-
-                curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
-                  -o "awscliv2.zip"
-
-                unzip awscliv2.zip
-
-                ./aws/install || true
-
-                aws --version
-                '''
-            }
-
-            // ================= GCP Tools =================
-
-            if (params.CLOUD_PROVIDER == "gcp") {
-
-                sh '''
-                echo "===== Installing GKE Auth Plugin ====="
-
-                gcloud components install \
-                  gke-gcloud-auth-plugin -q || true
-
-                gcloud version
-                '''
-            }
         }
     }
 
