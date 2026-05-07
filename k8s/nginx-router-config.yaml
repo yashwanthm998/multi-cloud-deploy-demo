@@ -9,7 +9,7 @@ data:
     }
 
     upstream gcp_backend {
-        server nginx-service.test-app.svc.cluster.local:80;
+        server 34.87.29.88:80;
     }
 
     split_clients "$request_id" $backend {
