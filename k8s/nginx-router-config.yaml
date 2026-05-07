@@ -28,6 +28,6 @@ data:
         location / {
             proxy_pass $target;
 
-            add_header X-Selected-Backend $backend;
+            add_header X-Cloud-Provider $backend;
         }
     }
