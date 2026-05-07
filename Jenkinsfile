@@ -283,7 +283,7 @@ spec:
             container('tools') {
                 script {
 
-                    if (params.ACTION == "deploy") {
+                    if (params.ACTION == "deploy" && params.CLOUD_PROVIDER == "gcp") {
 
                         sh """
                         echo "===== Deploying NGINX Router ====="
@@ -314,7 +314,7 @@ spec:
                         """
                     }
 
-                    if (params.ACTION == "delete") {
+                    if (params.ACTION == "delete" && params.CLOUD_PROVIDER == "gcp") {
 
                         sh """
                         echo "===== Deleting NGINX Router ====="
