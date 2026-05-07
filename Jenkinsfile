@@ -192,118 +192,6 @@ node(POD_LABEL) {
     }
 
     // ============================================================
-    // Scale Down Deployment In Other Cloud
-    // ============================================================
-
-    stage('Scale Down Deployment In Other Cloud') {
-
-        container('tools') {
-
-            script {
-
-                // ====================================================
-                // Deploying to AWS → Scale down GKE
-                // ====================================================
-
-                if (params.CLOUD_PROVIDER == "aws" &&
-                    params.ACTION == "deploy") {
-
-                    echo "===== Checking GKE Deployment ====="
-
-                    withCredentials([
-                        file(
-                            credentialsId: 'gcp-sa-key',
-                            variable: 'GCP_KEY'
-                        )
-                    ]) {
-
-                        sh """
-                        export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_KEY
-
-                        gcloud auth activate-service-account \
-                          --key-file=\$GOOGLE_APPLICATION_CREDENTIALS
-
-                        gcloud config set project gke-qa2-36938
-
-                        gcloud container clusters get-credentials \
-                          gke-qa2-sg1 \
-                          --zone asia-southeast1 \
-                          --project gke-qa2-36938 \
-                          --internal-ip
-
-                        if kubectl get deployment hello-app \
-                          -n ${params.NAMESPACE} >/dev/null 2>&1; then
-
-                          CURRENT_REPLICAS=\$(kubectl get deployment hello-app \
-                            -n ${params.NAMESPACE} \
-                            -o jsonpath='{.spec.replicas}')
-
-                          echo "Current GKE replicas: \$CURRENT_REPLICAS"
-
-                          if [ "\$CURRENT_REPLICAS" != "0" ]; then
-
-                            echo "Scaling down GKE deployment"
-
-                            kubectl scale deployment hello-app \
-                              --replicas=0 \
-                              -n ${params.NAMESPACE}
-                          fi
-
-                        else
-                          echo "No deployment found in GKE"
-                        fi
-                        """
-                    }
-                }
-
-                // ====================================================
-                // Deploying to GCP → Scale down AWS
-                // ====================================================
-
-                if (params.CLOUD_PROVIDER == "gcp" &&
-                    params.ACTION == "deploy") {
-
-                    echo "===== Checking EKS Deployment ====="
-
-                    withCredentials([[
-                        $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-creds'
-                    ]]) {
-
-                        sh """
-                        aws eks update-kubeconfig \
-                          --region ap-southeast-1 \
-                          --name hello-cluster
-
-                        if kubectl get deployment hello-app \
-                          -n ${params.NAMESPACE} >/dev/null 2>&1; then
-
-                          CURRENT_REPLICAS=\$(kubectl get deployment hello-app \
-                            -n ${params.NAMESPACE} \
-                            -o jsonpath='{.spec.replicas}')
-
-                          echo "Current EKS replicas: \$CURRENT_REPLICAS"
-
-                          if [ "\$CURRENT_REPLICAS" != "0" ]; then
-
-                            echo "Scaling down EKS deployment"
-
-                            kubectl scale deployment hello-app \
-                              --replicas=0 \
-                              -n ${params.NAMESPACE}
-                          fi
-
-                        else
-                          echo "No deployment found in EKS"
-                        fi
-                        """
-                    }
-                }
-            }
-        }
-    }
-
-    // ============================================================
     // Deploy Application In Selected Cloud
     // ============================================================
 
@@ -487,6 +375,118 @@ node(POD_LABEL) {
 
                         kubectl delete -n ${params.NAMESPACE} \
                           -f k8s/service.yaml || true
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    // ============================================================
+    // Scale Down Deployment In Other Cloud
+    // ============================================================
+
+    stage('Scale Down Deployment In Other Cloud') {
+
+        container('tools') {
+
+            script {
+
+                // ====================================================
+                // Deploying to AWS → Scale down GKE
+                // ====================================================
+
+                if (params.CLOUD_PROVIDER == "aws" &&
+                    params.ACTION == "deploy") {
+
+                    echo "===== Checking GKE Deployment ====="
+
+                    withCredentials([
+                        file(
+                            credentialsId: 'gcp-sa-key',
+                            variable: 'GCP_KEY'
+                        )
+                    ]) {
+
+                        sh """
+                        export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_KEY
+
+                        gcloud auth activate-service-account \
+                          --key-file=\$GOOGLE_APPLICATION_CREDENTIALS
+
+                        gcloud config set project gke-qa2-36938
+
+                        gcloud container clusters get-credentials \
+                          gke-qa2-sg1 \
+                          --zone asia-southeast1 \
+                          --project gke-qa2-36938 \
+                          --internal-ip
+
+                        if kubectl get deployment hello-app \
+                          -n ${params.NAMESPACE} >/dev/null 2>&1; then
+
+                          CURRENT_REPLICAS=\$(kubectl get deployment hello-app \
+                            -n ${params.NAMESPACE} \
+                            -o jsonpath='{.spec.replicas}')
+
+                          echo "Current GKE replicas: \$CURRENT_REPLICAS"
+
+                          if [ "\$CURRENT_REPLICAS" != "0" ]; then
+
+                            echo "Scaling down GKE deployment"
+
+                            kubectl scale deployment hello-app \
+                              --replicas=0 \
+                              -n ${params.NAMESPACE}
+                          fi
+
+                        else
+                          echo "No deployment found in GKE"
+                        fi
+                        """
+                    }
+                }
+
+                // ====================================================
+                // Deploying to GCP → Scale down AWS
+                // ====================================================
+
+                if (params.CLOUD_PROVIDER == "gcp" &&
+                    params.ACTION == "deploy") {
+
+                    echo "===== Checking EKS Deployment ====="
+
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-creds'
+                    ]]) {
+
+                        sh """
+                        aws eks update-kubeconfig \
+                          --region ap-southeast-1 \
+                          --name hello-cluster
+
+                        if kubectl get deployment hello-app \
+                          -n ${params.NAMESPACE} >/dev/null 2>&1; then
+
+                          CURRENT_REPLICAS=\$(kubectl get deployment hello-app \
+                            -n ${params.NAMESPACE} \
+                            -o jsonpath='{.spec.replicas}')
+
+                          echo "Current EKS replicas: \$CURRENT_REPLICAS"
+
+                          if [ "\$CURRENT_REPLICAS" != "0" ]; then
+
+                            echo "Scaling down EKS deployment"
+
+                            kubectl scale deployment hello-app \
+                              --replicas=0 \
+                              -n ${params.NAMESPACE}
+                          fi
+
+                        else
+                          echo "No deployment found in EKS"
+                        fi
                         """
                     }
                 }
