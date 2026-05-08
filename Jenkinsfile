@@ -387,12 +387,15 @@ spec:
                                     exit 1
                                 else
                                     echo "✅ All pods are ready and running!"
+                                    """
                                     withCredentials([
                                         file(
                                             credentialsId: 'gcp-sa-key',
                                             variable: 'GCP_KEY'
                                         )
                                     ]) {
+
+                                        sh """
                 
                                         export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_KEY
                 
@@ -642,11 +645,13 @@ spec:
                                     exit 1
                                 else
                                     echo "✅ All pods are ready and running!"
+                                    """
                                     withCredentials([[
                                         $class: 'AmazonWebServicesCredentialsBinding',
                                         credentialsId: 'aws-creds'
                                     ]]) {
-                
+
+                                        sh """
                                         aws eks update-kubeconfig \
                                           --region ap-southeast-1 \
                                           --name hello-cluster
