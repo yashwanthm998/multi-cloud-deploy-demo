@@ -433,6 +433,7 @@ spec:
                                           echo "No deployment found in GKE"
                                         fi
                                     """
+                                }
                             } catch (Exception e) {
                                 env.BUILD_STAGE = 'Deploy Application'
                                 
@@ -679,7 +680,8 @@ spec:
                                         else
                                           echo "No deployment found in EKS"
                                         fi
-                                """
+                                        """
+                                 }
                             } catch (Exception e) {
                                 env.BUILD_STAGE = 'Deploy Application'
                                 
