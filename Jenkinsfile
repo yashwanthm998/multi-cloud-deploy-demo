@@ -387,8 +387,9 @@ spec:
                                     exit 1
                                 else
                                     echo "✅ All pods are ready and running!"
-                                    """
-                                    withCredentials([
+                                fi
+                                """
+                                withCredentials([
                                         file(
                                             credentialsId: 'gcp-sa-key',
                                             variable: 'GCP_KEY'
@@ -431,8 +432,7 @@ spec:
                                         else
                                           echo "No deployment found in GKE"
                                         fi
-                                fi
-                                """
+                                    """
                             } catch (Exception e) {
                                 env.BUILD_STAGE = 'Deploy Application'
                                 
@@ -645,7 +645,9 @@ spec:
                                     exit 1
                                 else
                                     echo "✅ All pods are ready and running!"
-                                    """
+                                    
+                                fi
+                                """
                                     withCredentials([[
                                         $class: 'AmazonWebServicesCredentialsBinding',
                                         credentialsId: 'aws-creds'
@@ -677,7 +679,6 @@ spec:
                                         else
                                           echo "No deployment found in EKS"
                                         fi
-                                fi
                                 """
                             } catch (Exception e) {
                                 env.BUILD_STAGE = 'Deploy Application'
