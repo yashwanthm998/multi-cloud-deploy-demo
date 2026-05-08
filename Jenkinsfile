@@ -387,7 +387,47 @@ spec:
                                     exit 1
                                 else
                                     echo "✅ All pods are ready and running!"
-                                    scaleDownGCP()
+                                    withCredentials([
+                                        file(
+                                            credentialsId: 'gcp-sa-key',
+                                            variable: 'GCP_KEY'
+                                        )
+                                    ]) {
+                
+                                        export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_KEY
+                
+                                        gcloud auth activate-service-account \
+                                          --key-file=\$GOOGLE_APPLICATION_CREDENTIALS
+                
+                                        gcloud config set project gke-qa2-36938
+                
+                                        gcloud container clusters get-credentials \
+                                          gke-qa2-sg1 \
+                                          --zone asia-southeast1 \
+                                          --project gke-qa2-36938 \
+                                          --internal-ip
+                
+                                        if kubectl get deployment hello-app \
+                                          -n ${params.NAMESPACE} >/dev/null 2>&1; then
+                
+                                          CURRENT_REPLICAS=\$(kubectl get deployment hello-app \
+                                            -n ${params.NAMESPACE} \
+                                            -o jsonpath='{.spec.replicas}')
+                
+                                          echo "Current GKE replicas: \$CURRENT_REPLICAS"
+                
+                                          if [ "\$CURRENT_REPLICAS" != "0" ]; then
+                
+                                            echo "Scaling down GKE deployment"
+                
+                                            kubectl scale deployment hello-app \
+                                              --replicas=0 \
+                                              -n ${params.NAMESPACE}
+                                          fi
+                
+                                        else
+                                          echo "No deployment found in GKE"
+                                        fi
                                 fi
                                 """
                             } catch (Exception e) {
@@ -602,7 +642,36 @@ spec:
                                     exit 1
                                 else
                                     echo "✅ All pods are ready and running!"
-                                    scaleDownAWS()
+                                    withCredentials([[
+                                        $class: 'AmazonWebServicesCredentialsBinding',
+                                        credentialsId: 'aws-creds'
+                                    ]]) {
+                
+                                        aws eks update-kubeconfig \
+                                          --region ap-southeast-1 \
+                                          --name hello-cluster
+                
+                                        if kubectl get deployment hello-app \
+                                          -n ${params.NAMESPACE} >/dev/null 2>&1; then
+                
+                                          CURRENT_REPLICAS=\$(kubectl get deployment hello-app \
+                                            -n ${params.NAMESPACE} \
+                                            -o jsonpath='{.spec.replicas}')
+                
+                                          echo "Current EKS replicas: \$CURRENT_REPLICAS"
+                
+                                          if [ "\$CURRENT_REPLICAS" != "0" ]; then
+                
+                                            echo "Scaling down EKS deployment"
+                
+                                            kubectl scale deployment hello-app \
+                                              --replicas=0 \
+                                              -n ${params.NAMESPACE}
+                                          fi
+                
+                                        else
+                                          echo "No deployment found in EKS"
+                                        fi
                                 fi
                                 """
                             } catch (Exception e) {
