@@ -12,11 +12,6 @@ data:
         server 34.87.29.88:80;
     }
 
-    split_clients "$request_id" $backend {
-        50% "aws";
-        *   "gcp";
-    }
-
     map $backend $target {
         aws http://aws_backend;
         gcp http://gcp_backend;
