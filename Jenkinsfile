@@ -845,7 +845,7 @@ spec:
     stage('Deploy Router (GCP Only)') {
         container('tools') {
             script {
-                if (params.CLOUD_PROVIDER == "gcp" && params.ACTION == "deploy") {
+                if (params.TARGET_CLOUD == "gcp" && params.ACTION == "deploy") {
 
                     withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
 
@@ -868,7 +868,7 @@ spec:
                 }
 
                 if (params.ACTION == "delete" &&
-                    params.CLOUD_PROVIDER == "gcp") {
+                    params.TARGET_CLOUD == "gcp") {
 
                     withCredentials([
                         file(
@@ -912,38 +912,3 @@ spec:
 }
 }
 
-// ================= FUNCTIONS =================
-
-def scaleDownAWS() {
-    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
-        sh """
-        echo "Scaling down AWS AFTER success"
-        aws eks update-kubeconfig --region ap-southeast-1 --name hello-cluster
-        kubectl scale deployment hello-app --replicas=0 -n ${params.NAMESPACE} || true
-        """
-    }
-}
-
-def scaleDownGCP() {
-    withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
-        sh """
-        echo "Scaling down GCP AFTER success"
-
-        export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_KEY
-
-        gcloud auth activate-service-account \
-          --key-file=\$GOOGLE_APPLICATION_CREDENTIALS
-
-        gcloud config set project gke-qa2-36938
-
-        gcloud container clusters get-credentials gke-qa2-sg1 \
-          --zone asia-southeast1 \
-          --project gke-qa2-36938 \
-          --internal-ip
-
-        kubectl scale deployment hello-app \
-          --replicas=0 \
-          -n ${params.NAMESPACE} || true
-        """
-    }
-}
